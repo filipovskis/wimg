@@ -6,7 +6,7 @@ A handy library to get images from the internet in Garry's Mod.
 - Simple syntax
 
 ### ✍️ Example
-```lua=
+```lua
 -- You can assign an identifier to URL to reuse it after in different parts of code
 wimg.Register('user', 'https://i.imgur.com/Q3OHblv.png')
 
