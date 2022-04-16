@@ -87,6 +87,7 @@ do
             local url = data.url
             local format = data.format
             local callback = data.callback
+            local parameters = data.parameters
             local mat = findMaterial(name, format, parameters)
 
             if mat then
