@@ -88,17 +88,23 @@ do
             local format = data.format
             local callback = data.callback
             local parameters = data.parameters
-            local mat = findMaterial(name, format, parameters)
+            
+            local success, errorString = pcall(function()
+                local mat = findMaterial(name, format, parameters)
+                if mat then
+                    callback(mat)
+                else
+                    http_Fetch(wimg.proxy .. url, function(body)
+                        saveMaterial(name, format, body)
+                        callback(findMaterial(name, format, parameters))
+                    end, function()
+                        print(Format('Failed to download the image with name: \"%s\"', data.name))
+                    end)
+                end
+            end)
 
-            if mat then
-                callback(mat)
-            else
-                http_Fetch(wimg.proxy .. url, function(body)
-                    saveMaterial(name, format, body)
-                    callback(findMaterial(name, format, parameters))
-                end, function()
-                    print(Format('Failed to download the image with name: \"%s\"', data.name))
-                end)
+            if (not success) then
+                print('Error during wimg image catchup', errorString)
             end
         end
     end)
@@ -169,15 +175,21 @@ WIMAGE.__call = WIMAGE.Draw
 -- ANCHOR Library
 
 function wimg.Register(name, url)
+    assert(name, 'No name provided')
+    assert(url, 'No URL provided')
     wimg.cache[name] = url
 end
 
 function wimg.Create(name, parameters)
-    local url = wimg.cache[name]
+    assert(name, 'No name provided')
 
-    assert(url, 'There\'s no web image registered with name: ' .. name)
+    local url = wimg.cache[name]
+    if (not url) then
+        ErrorNoHalt('There\'s no web image registered with name: ' .. name)
+    end
 
     local format = string.match(url, '.%w+$')
+    assert(format, 'wrong format for this url: ' .. url .. ' (' .. name ..  ')')
     local obj = setmetatable({
         m_Name = name,
         m_URL = url,
@@ -198,6 +210,9 @@ do
     end
 
     function wimg.Simple(url, parameters)
+        assert(url, 'No URL provided')
+        assert(isstring(url), 'URL should be string!')
+
         if not urlCache[url] then
             urlCache[url] = encodeURL(url)
         end
