@@ -37,9 +37,10 @@ do
     local table_remove = table.remove
     local file_Exists = file.Exists
     local file_Write = file.Write
+    local insert = table.insert
 
     local basePath = 'wimg'
-    local queue, index = {}, 0
+    local queue = {}
     local rate = 1 / 5
 
     if not file_Exists(basePath, 'DATA') then
@@ -66,14 +67,13 @@ do
         if mat then
             callback(mat)
         else
-            index = index + 1
-            queue[index] = {
+            insert(queue, {
                 name = name,
                 url = url,
                 format = format,
                 parameters = parameters,
                 callback = callback
-            }
+            })
         end
     end
 
@@ -81,7 +81,6 @@ do
         local data = queue[1]
         if data then
             table_remove(queue, 1)
-            index = index - 1
 
             local name = data.name
             local url = data.url
