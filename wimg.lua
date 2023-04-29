@@ -23,11 +23,16 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 --]]
 
-wimg = {}
-wimg.cache = {}
-wimg.proxy = 'https://proxy.duckduckgo.com/iu/?u='
+wimg = wimg or {}
+wimg.cache = wimg.cache or {}
+-- wimg.proxy = 'https://proxy.duckduckgo.com/iu/?u=' -- it seems imgur has banned duckduckgo's proxy at 29/04/2023, you can try to enable it
+wimg.proxy = ''
 
 local wimg = wimg
+
+local function printWarning(text)
+    MsgC(color_white, '(', Color(153, 0, 255), 'wimg', color_white, ') ', text)
+end
 
 -- ANCHOR Queue
 
@@ -61,49 +66,66 @@ do
         file_Write(path, body)
     end
 
-    function addInQueue(name, url, format, parameters, callback)
+    function addInQueue(wimgObject)
+        local name = wimgObject:GetName()
+        local url = wimgObject:GetURL()
+        local format = wimgObject:GetFormat()
+        local params = wimgObject:GetParameters()
         local mat = findMaterial(name, format, parameters)
 
         if mat then
-            callback(mat)
+            wimgObject:SetMaterial(mat)
         else
             insert(queue, {
                 name = name,
                 url = url,
                 format = format,
                 parameters = parameters,
-                callback = callback
+                wimgObject = wimgObject
             })
         end
     end
 
     timer.Create('wimg.ProcessQueue', rate, 0, function()
         local data = queue[1]
-        if data then
+        if (data) then
             table_remove(queue, 1)
 
             local name = data.name
             local url = data.url
             local format = data.format
-            local callback = data.callback
             local parameters = data.parameters
+            local wimgObject = data.wimgObject
             
             local success, errorString = pcall(function()
                 local mat = findMaterial(name, format, parameters)
                 if mat then
-                    callback(mat)
+                    wimgObject:SetMaterial(mat)
                 else
-                    http_Fetch(wimg.proxy .. url, function(body)
+                    http_Fetch(wimg.proxy .. url, function(body, size, headers, code)
+                        if (code > 200) then
+                            printWarning('Failed to fetch material (code: ' .. tostring(code) .. '), url: ' .. url)
+                            return
+                        end
+
                         saveMaterial(name, format, body)
-                        callback(findMaterial(name, format, parameters))
+
+                        local mat = findMaterial(name, format, parameters)
+                        if (mat) then
+                            if (wimgObject) then
+                                wimgObject:SetMaterial(mat)
+                            end
+                        else
+                            printWarning('Failed to fetch material after download! (url: ' .. url .. ')')
+                        end
                     end, function()
-                        print(Format('Failed to download the image with name: \"%s\"', data.name))
+                        printWarning(Format('Failed to download the image with name: \"%s\", url: %s', name, url))
                     end)
                 end
             end)
 
             if (not success) then
-                print('Error during wimg image catchup', errorString)
+                printWarning('Error occured during image catchup: ' .. errorString)
             end
         end
     end)
@@ -156,9 +178,7 @@ do
 end
 
 function WIMAGE:Download()
-    addInQueue(self.m_Name, self.m_URL, self.m_Format, self.m_Parameters, function(material)
-        self.m_Material = material
-    end)
+    addInQueue(self)
 end
 
 function WIMAGE:GetWidth()
@@ -183,12 +203,16 @@ function wimg.Create(name, parameters)
     assert(name, 'No name provided')
 
     local url = wimg.cache[name]
+    local invalid = false
+
     if (not url) then
         ErrorNoHalt('There\'s no web image registered with name: ' .. name)
+        invalid = true
     end
 
-    local format = string.match(url, '.%w+$')
+    local format = invalid and '_INVALID_' or string.match(url, '.%w+$')
     assert(format, 'wrong format for this url: ' .. url .. ' (' .. name ..  ')')
+
     local obj = setmetatable({
         m_Name = name,
         m_URL = url,
@@ -196,7 +220,9 @@ function wimg.Create(name, parameters)
         m_Parameters = parameters
     }, WIMAGE)
 
-    obj:Download()
+    if (not invalid) then
+        obj:Download()
+    end
 
     return obj
 end
