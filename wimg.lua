@@ -71,7 +71,7 @@ do
         local url = wimgObject:GetURL()
         local format = wimgObject:GetFormat()
         local params = wimgObject:GetParameters()
-        local mat = findMaterial(name, format, parameters)
+        local mat = findMaterial(name, format, params)
 
         if mat then
             wimgObject:SetMaterial(mat)
@@ -80,7 +80,7 @@ do
                 name = name,
                 url = url,
                 format = format,
-                parameters = parameters,
+                parameters = params,
                 wimgObject = wimgObject
             })
         end
@@ -88,7 +88,7 @@ do
 
     timer.Create('wimg.ProcessQueue', rate, 0, function()
         local data = queue[1]
-        if (data) then
+        if data then
             table_remove(queue, 1)
 
             local name = data.name
@@ -96,14 +96,14 @@ do
             local format = data.format
             local parameters = data.parameters
             local wimgObject = data.wimgObject
-            
+
             local success, errorString = pcall(function()
                 local mat = findMaterial(name, format, parameters)
                 if mat then
                     wimgObject:SetMaterial(mat)
                 else
                     http_Fetch(wimg.proxy .. url, function(body, size, headers, code)
-                        if (code > 200) then
+                        if code > 200 then
                             printWarning('Failed to fetch material (code: ' .. tostring(code) .. '), url: ' .. url)
                             return
                         end
@@ -111,10 +111,8 @@ do
                         saveMaterial(name, format, body)
 
                         local mat = findMaterial(name, format, parameters)
-                        if (mat) then
-                            if (wimgObject) then
-                                wimgObject:SetMaterial(mat)
-                            end
+                        if mat and wimgObject then
+                            wimgObject:SetMaterial(mat)
                         else
                             printWarning('Failed to fetch material after download! (url: ' .. url .. ')')
                         end
@@ -124,7 +122,7 @@ do
                 end
             end)
 
-            if (not success) then
+            if not success then
                 printWarning('Error occured during image catchup: ' .. errorString)
             end
         end
@@ -205,7 +203,7 @@ function wimg.Create(name, parameters)
     local url = wimg.cache[name]
     local invalid = false
 
-    if (not url) then
+    if not url then
         ErrorNoHalt('There\'s no web image registered with name: ' .. name)
         invalid = true
     end
@@ -220,7 +218,7 @@ function wimg.Create(name, parameters)
         m_Parameters = parameters
     }, WIMAGE)
 
-    if (not invalid) then
+    if not invalid then
         obj:Download()
     end
 
