@@ -70,7 +70,7 @@ do
         local name = wimgObject:GetName()
         local url = wimgObject:GetURL()
         local format = wimgObject:GetFormat()
-        local params = wimgObject:GetParameters()
+        local parameters = wimgObject:GetParameters()
         local mat = findMaterial(name, format, parameters)
 
         if mat then
